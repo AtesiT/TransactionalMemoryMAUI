@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:TransactionalMemoryMAUI.ViewModels"
+             x:Class="TransactionalMemoryMAUI.MainPage"
+             Title="STM / CAS Visual Demo">
+
+    <ContentPage.BindingContext>
+        <vm:MainViewModel />
+    </ContentPage.BindingContext>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Padding="12" RowSpacing="10" BackgroundColor="#F5F5F5">
+
+        <!-- Заголовок -->
+        <VerticalStackLayout Grid.Row="0" Spacing="6">
+            <Label Text="Лабораторная работа: Транзакционная память (STM) и CAS"
+                   FontSize="18" FontAttributes="Bold" HorizontalTextAlignment="Center"
+                   TextColor="#212121" />
+
+            <Label Text="{Binding InfoText}"
+                   FontSize="12" TextColor="#616161" HorizontalTextAlignment="Center"
+                   LineBreakMode="WordWrap" />
+
+            <Picker Title="Выберите демонстрацию" SelectedIndex="0"
+                    SelectedIndexChanged="OnDemoPickerChanged"
+                    BackgroundColor="White">
+                <Picker.Items>
+                    <x:String>Демо 1: CAS (Interlocked.CompareExchange) — один счёт</x:String>
+                    <x:String>Демо 2: STM-перевод между счетами (MVCC)</x:String>
+                </Picker.Items>
+            </Picker>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <VerticalStackLayout Grid.Column="0" Spacing="2">
+                    <Label Text="{Binding WorkerCount, StringFormat='Потоков: {0:F0}'}" FontSize="12" />
+                    <Slider Minimum="2" Maximum="60" Value="{Binding WorkerCount, Mode=TwoWay}"
+                            MinimumTrackColor="#1976D2" MaximumTrackColor="#BDBDBD" ThumbColor="#1976D2" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Grid.Column="1" Spacing="2" IsVisible="{Binding IsSingleDemo}">
+                    <Label Text="{Binding DepositAmount, StringFormat='Сумма депозита: {0:F0}'}" FontSize="12" />
+                    <Slider Minimum="1" Maximum="100" Value="{Binding DepositAmount, Mode=TwoWay}"
+                            MinimumTrackColor="#388E3C" MaximumTrackColor="#BDBDBD" ThumbColor="#388E3C" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Grid.Column="1" Spacing="2" IsVisible="{Binding IsTransferDemo}">
+                    <Label Text="{Binding TransferAmount, StringFormat='Сумма перевода: {0:F0}'}" FontSize="12" />
+                    <Slider Minimum="1" Maximum="100" Value="{Binding TransferAmount, Mode=TwoWay}"
+                            MinimumTrackColor="#7B1FA2" MaximumTrackColor="#BDBDBD" ThumbColor="#7B1FA2" />
+                </VerticalStackLayout>
+            </Grid>
+
+            <HorizontalStackLayout Spacing="12" HorizontalOptions="Center">
+                <Button Text="▶ Запустить" Command="{Binding StartCommand}" IsEnabled="{Binding IsNotRunning}"
+                        BackgroundColor="#1976D2" TextColor="White" CornerRadius="8" Padding="20,10" />
+                <Button Text="↺ Сброс" Command="{Binding ResetCommand}" IsEnabled="{Binding IsNotRunning}"
+                        BackgroundColor="#757575" TextColor="White" CornerRadius="8" Padding="20,10" />
+                <ActivityIndicator IsRunning="{Binding IsRunning}" IsVisible="{Binding IsRunning}"
+                                   Color="#1976D2" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+
+        <!-- Статистика -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+            <Frame Grid.Column="0" Padding="8" BorderColor="#E0E0E0" BackgroundColor="White" CornerRadius="8"
+                   IsVisible="{Binding IsSingleDemo}">
+                <Label Text="{Binding SingleAccountBalance, StringFormat='Баланс: {0}'}"
+                       HorizontalTextAlignment="Center" FontAttributes="Bold" TextColor="#1976D2" />
+            </Frame>
+
+            <Frame Grid.Column="0" Padding="8" BorderColor="#E0E0E0" BackgroundColor="White" CornerRadius="8"
+                   IsVisible="{Binding IsTransferDemo}">
+                <Label Text="{Binding AccountABalance, StringFormat='Счёт A: {0}'}"
+                       HorizontalTextAlignment="Center" FontAttributes="Bold" TextColor="#388E3C" />
+            </Frame>
+
+            <Frame Grid.Column="1" Padding="8" BorderColor="#E0E0E0" BackgroundColor="White" CornerRadius="8"
+                   IsVisible="{Binding IsTransferDemo}">
+                <Label Text="{Binding AccountBBalance, StringFormat='Счёт B: {0}'}"
+                       HorizontalTextAlignment="Center" FontAttributes="Bold" TextColor="#7B1FA2" />
+            </Frame>
+
+            <Frame Grid.Column="2" Padding="8" BorderColor="#E0E0E0" BackgroundColor="White" CornerRadius="8">
+                <Label Text="{Binding ConflictsText}" HorizontalTextAlignment="Center" FontSize="11"
+                       LineBreakMode="WordWrap" TextColor="#424242" />
+            </Frame>
+        </Grid>
+
+        <!-- Легенда теории -->
+        <Frame Grid.Row="2" Padding="10" BackgroundColor="#FFF3E0" BorderColor="#FFB74D" CornerRadius="8">
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Как это связано с теорией STM:" FontAttributes="Bold" FontSize="12" TextColor="#E65100" />
+                <Label FontSize="11" TextColor="#4E342E" LineBreakMode="WordWrap">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="• Оптимистичный подход: " FontAttributes="Bold" />
+                            <Span Text="нет lock на время работы, только короткая блокировка на commit&#10;" />
+                            <Span Text="• Чтение снимка: " FontAttributes="Bold" />
+                            <Span Text="TVar.Read() возвращает (Value, Version)&#10;" />
+                            <Span Text="• Валидация и коммит: " FontAttributes="Bold" />
+                            <Span Text="проверка версий перед записью&#10;" />
+                            <Span Text="• Откат и Retry: " FontAttributes="Bold" />
+                            <Span Text="while(true) + onConflict — возврат к чтению&#10;" />
+                            <Span Text="• MVCC: " FontAttributes="Bold" />
+                            <Span Text="версия хранится вместе со значением&#10;" />
+                            <Span Text="• CAS: " FontAttributes="Bold" />
+                            <Span Text="Interlocked.CompareExchange — прямой аналог примера 1" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+            </VerticalStackLayout>
+        </Frame>
+
+        <!-- Графика -->
+        <Frame Grid.Row="3" Padding="0" BorderColor="#E0E0E0" BackgroundColor="White" CornerRadius="12" HasShadow="True">
+            <GraphicsView x:Name="CanvasView" BackgroundColor="White" />
+        </Frame>
+
+        <!-- Лог -->
+        <Frame Grid.Row="4" Padding="8" BackgroundColor="#263238" BorderColor="#37474F" CornerRadius="8">
+            <ScrollView HeightRequest="150">
+                <Label Text="{Binding LogText}" FontSize="11" FontFamily="Courier New"
+                       TextColor="#E0E0E0" LineBreakMode="WordWrap" />
+            </ScrollView>
+        </Frame>
+
+    </Grid>
+</ContentPage>
